@@ -112,6 +112,7 @@ def following_posts(self):
             .order_by(Post.timestamp.desc())
         )
 
+
 class Post(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     body: so.Mapped[str] = so.mapped_column(sa.String(140))
