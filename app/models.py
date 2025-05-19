@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 from hashlib import md5
+from time import time
 from typing import Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from app import db, login, app
-from time import time
 import jwt
+from app import app, db, login
 
 
 followers = sa.Table(
@@ -21,8 +21,6 @@ followers = sa.Table(
 
 
 class User(UserMixin, db.Model):
-    ''' Модель пользователя'''
-
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(64), index=True,
                                                 unique=True)
@@ -35,7 +33,6 @@ class User(UserMixin, db.Model):
 
     posts: so.WriteOnlyMapped['Post'] = so.relationship(
         back_populates='author')
-
     following: so.WriteOnlyMapped['User'] = so.relationship(
         secondary=followers, primaryjoin=(followers.c.follower_id == id),
         secondaryjoin=(followers.c.followed_id == id),
@@ -105,7 +102,7 @@ class User(UserMixin, db.Model):
         try:
             id = jwt.decode(token, app.config['SECRET_KEY'],
                             algorithms=['HS256'])['reset_password']
-        except:
+        except Exception:
             return
         return db.session.get(User, id)
 
@@ -115,22 +112,6 @@ def load_user(id):
     return db.session.get(User, int(id))
 
 
-def following_posts(self):
-        Author = so.aliased(User)
-        Follower = so.aliased(User)
-        return (
-            sa.select(Post)
-            .join(Post.author.of_type(Author))
-            .join(Author.followers.of_type(Follower), isouter=True)
-            .where(sa.or_(
-                Follower.id == self.id,
-                Author.id == self.id,
-            ))
-            .group_by(Post)
-            .order_by(Post.timestamp.desc())
-        )
-
-
 class Post(db.Model):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     body: so.Mapped[str] = so.mapped_column(sa.String(140))
@@ -138,6 +119,7 @@ class Post(db.Model):
         index=True, default=lambda: datetime.now(timezone.utc))
     user_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey(User.id),
                                                index=True)
+    language: so.Mapped[Optional[str]] = so.mapped_column(sa.String(5))
 
     author: so.Mapped[User] = so.relationship(back_populates='posts')
 
